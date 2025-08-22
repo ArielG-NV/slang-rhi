@@ -364,6 +364,9 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             }
         }
 
+        // For simplicitly: Manually set the device to test different GPUs
+        selectedDeviceIndex = 0;
+
         if (selectedDeviceIndex >= physicalDevices.size())
             return SLANG_FAIL;
 
