@@ -46,19 +46,8 @@ static Result loadProgram(
     return outShaderProgram ? SLANG_OK : SLANG_FAIL;
 }
 
-double setupDispatchAndTimeWithLinkTimeConstant(IDevice* device, const char* sourceFileName)
+double dispatchAndTime(IDevice* device, ComPtr<IShaderProgram> shaderProgram, slang::ProgramLayout*& slangReflection)
 {
-    ComPtr<IShaderProgram> shaderProgram;
-    slang::ProgramLayout* slangReflection = nullptr;
-
-    REQUIRE_CALL(loadProgram(
-        device,
-        shaderProgram,
-        sourceFileName,
-        "computeMain",
-        slangReflection
-    ));
-
     ComputePipelineDesc pipelineDesc = {};
     pipelineDesc.program = shaderProgram.get();
     ComPtr<IComputePipeline> pipeline;
@@ -105,21 +94,52 @@ double setupDispatchAndTimeWithLinkTimeConstant(IDevice* device, const char* sou
 
 GPU_TEST_CASE("coherent-perf-comparison", Vulkan)
 {
+    ComPtr<IShaderProgram> shaderProgramWarmup;
+    slang::ProgramLayout* slangReflectionWarmup = nullptr;
+    REQUIRE_CALL(loadProgram(
+        device,
+        shaderProgramWarmup,
+        "test-coherent-perf-warmup.slang",
+        "computeMain",
+        slangReflectionWarmup
+    ));
+
+    ComPtr<IShaderProgram> shaderProgramDevice;
+    slang::ProgramLayout* slangReflectionDevice = nullptr;
+    REQUIRE_CALL(loadProgram(
+        device,
+        shaderProgramDevice,
+        "test-coherent-perf-device.slang",
+        "computeMain",
+        slangReflectionDevice
+    )
+    );
+
+    ComPtr<IShaderProgram> shaderProgramWorkgroup;
+    slang::ProgramLayout* slangReflectionWorkgroup = nullptr;
+    REQUIRE_CALL(loadProgram(
+        device,
+        shaderProgramWorkgroup,
+        "test-coherent-perf-workgroup.slang",
+        "computeMain",
+        slangReflectionWorkgroup
+    )
+    );
+
     // Note: not using link-time-constants due to bug(?) causing them to fail
-    const int trials = 5;
+    const int trials = 3;
     double totalDeviceTime = 0;
     double totalWorkgroupTime = 0;
     for (auto i = 0; i < trials; i++)
     {
-        setupDispatchAndTimeWithLinkTimeConstant(device, "test-coherent-perf-warmup.slang");
+        dispatchAndTime(device, shaderProgramWarmup, slangReflectionWarmup);
 
-        totalWorkgroupTime += 1.0f / (double)trials *
-                              setupDispatchAndTimeWithLinkTimeConstant(device, "test-coherent-perf-workgroup.slang");
+        totalDeviceTime += 1.0f / (double)trials * dispatchAndTime(device, shaderProgramDevice, slangReflectionDevice);
 
-        setupDispatchAndTimeWithLinkTimeConstant(device, "test-coherent-perf-warmup.slang");
+        dispatchAndTime(device, shaderProgramWarmup, slangReflectionWarmup);
 
-        totalDeviceTime += 1.0f / (double)trials * setupDispatchAndTimeWithLinkTimeConstant(device, "test-coherent-perf-device.slang");
-
+        totalWorkgroupTime +=
+            1.0f / (double)trials * dispatchAndTime(device, shaderProgramWorkgroup, slangReflectionWorkgroup);
     }
     printf("\n Device, Time: %f \n", totalDeviceTime);
     printf("\n Workgroup, Time: %f \n", totalWorkgroupTime);
