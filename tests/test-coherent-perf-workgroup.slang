@@ -1,5 +1,5 @@
 static const MemoryScope memoryScope = MemoryScope::Workgroup;
-static const int alignment = 1;
+static const int alignment = 4;
 
 uniform RWStructuredBuffer<int> buffer;
 [numthreads(32, 32, 1)]

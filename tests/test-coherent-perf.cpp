@@ -127,7 +127,7 @@ GPU_TEST_CASE("coherent-perf-comparison", Vulkan)
     );
 
     // Note: not using link-time-constants due to bug(?) causing them to fail
-    const int trials = 3;
+    const int trials = 5;
     double totalDeviceTime = 0;
     double totalWorkgroupTime = 0;
     for (auto i = 0; i < trials; i++)
